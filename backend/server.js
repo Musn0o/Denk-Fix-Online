@@ -44,6 +44,7 @@ io.on('connection', (socket) => {
       state: 'LOBBY', // LOBBY, PLAYING, CORRECTION, RESULTS
       categories: ['Möbel (Furniture)', 'Essen & Trinken (Food)', 'Kleidung (Clothes)', 'Berufe (Jobs)', 'Tiere (Animals)', 'Körperteile (Body parts)'], 
       currentLetter: '',
+      timerSetting: 60,
       history: []
     });
 
@@ -109,8 +110,8 @@ io.on('connection', (socket) => {
     room.state = 'PLAYING';
     room.currentLetter = randomLetter;
     
-    // Server authoritative timer (e.g., 60 seconds)
-    const TOTAL_TIME = 60;
+    // Server authoritative timer using host setting
+    const TOTAL_TIME = room.timerSetting || 60;
     room.timer = TOTAL_TIME;
 
     io.to(roomCode).emit('game_started', {
@@ -135,6 +136,18 @@ io.on('connection', (socket) => {
     // Store interval ID inside the room to clear it later if needed
     room.intervalId = interval;
     if (callback) callback({ success: true });
+  });
+
+  // Adjustable Timer Setting
+  socket.on('set_game_time', (data) => {
+    const { roomCode, timerSetting } = data || {};
+    if (!roomCode || !rooms.has(roomCode)) return;
+
+    const room = rooms.get(roomCode);
+    if (room.hostId !== socket.id) return;
+
+    room.timerSetting = parseInt(timerSetting) || 60;
+    io.to(roomCode).emit('timer_setting_updated', { timerSetting: room.timerSetting });
   });
 
   // Return to Lobby from Results

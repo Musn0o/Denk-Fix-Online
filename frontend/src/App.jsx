@@ -17,6 +17,7 @@ function App() {
   const [correctionData, setCorrectionData] = useState(null);
   const [finalResults, setFinalResults] = useState(null);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [timerSetting, setTimerSetting] = useState(60);
 
   useEffect(() => {
     // Check for room code in URL
@@ -66,9 +67,14 @@ function App() {
     socket.on('returned_to_lobby', (data) => {
       setGameState('LOBBY');
       setRoom(data.room);
+      setTimerSetting(data.room.timerSetting || 60);
       setAnswers({});
       setCorrectionData(null);
       setFinalResults(null);
+    });
+
+    socket.on('timer_setting_updated', (data) => {
+      setTimerSetting(data.timerSetting);
     });
 
     return () => {
@@ -139,6 +145,11 @@ function App() {
 
   const nextCategory = () => {
     socket.emit('next_category', { roomCode });
+  };
+
+  const handleTimerChange = (val) => {
+    setTimerSetting(val);
+    socket.emit('set_game_time', { roomCode, timerSetting: val });
   };
 
   const returnToLobby = () => {
@@ -240,6 +251,27 @@ function App() {
                 {copySuccess ? <CheckCircle size={16} /> : <Copy size={16} />}
                 {copySuccess ? 'Kopiert!' : 'Link kopieren'}
               </button>
+            </div>
+          </div>
+
+          <div className="game-settings-section glass-panel">
+            <div className="setting-item">
+              <label><Timer size={18} /> Rundenzeit: <strong>{timerSetting}s</strong></label>
+              {isHost ? (
+                <div className="timer-options">
+                  {[30, 60, 90, 120].map(val => (
+                    <button 
+                      key={val} 
+                      onClick={() => handleTimerChange(val)}
+                      className={`timer-opt-btn ${timerSetting === val ? 'active' : ''}`}
+                    >
+                      {val}s
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <span className="setting-value">{timerSetting} Sekunden</span>
+              )}
             </div>
           </div>
 
