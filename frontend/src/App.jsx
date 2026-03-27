@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import './App.css';
-import { Gamepad2, Users, Timer, Star, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Gamepad2, Users, Timer, Star, CheckCircle, XCircle, AlertCircle, Share2, Copy } from 'lucide-react';
 import { socket } from './socket';
+import { QRCodeSVG } from 'qrcode.react';
 
 function App() {
   const [playerName, setPlayerName] = useState('');
@@ -15,8 +16,16 @@ function App() {
   const [isLocked, setIsLocked] = useState(false);
   const [correctionData, setCorrectionData] = useState(null);
   const [finalResults, setFinalResults] = useState(null);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
+    // Check for room code in URL
+    const params = new URLSearchParams(window.location.search);
+    const urlRoom = params.get('room');
+    if (urlRoom) {
+      setRoomCode(urlRoom.toUpperCase());
+    }
+
     socket.connect();
 
     socket.on('player_joined', (players) => {
@@ -134,7 +143,19 @@ function App() {
 
   const returnToLobby = () => {
     socket.emit('return_to_lobby', { roomCode }, (res) => {
+      if (res.success) {
+        // Clear URL parameters when returning to lobby if they exist
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
       if (!res.success) setError(res.message);
+    });
+  };
+
+  const copyInviteLink = () => {
+    const link = `${window.location.origin}?room=${roomCode}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
     });
   };
 
@@ -195,6 +216,8 @@ function App() {
 
   if (gameState === 'LOBBY') {
     const isHost = room.players.find(p => p.id === socket.id)?.isHost;
+    const inviteLink = `${window.location.origin}?room=${room.code}`;
+
     return (
       <div className="app-container lobby-container">
         <div className="glass-panel lobby-panel">
@@ -202,6 +225,21 @@ function App() {
             <div className="room-info">
               <span className="room-label">Raumcode</span>
               <h2 className="room-code-display">{room.code}</h2>
+            </div>
+            
+            <div className="qr-section glass-panel">
+              <QRCodeSVG 
+                value={inviteLink} 
+                size={160}
+                bgColor={"transparent"}
+                fgColor={"#00f0ff"}
+                level={"H"}
+                includeMargin={false}
+              />
+              <button onClick={copyInviteLink} className={`copy-link-btn ${copySuccess ? 'success' : ''}`}>
+                {copySuccess ? <CheckCircle size={16} /> : <Copy size={16} />}
+                {copySuccess ? 'Kopiert!' : 'Link kopieren'}
+              </button>
             </div>
           </div>
 
