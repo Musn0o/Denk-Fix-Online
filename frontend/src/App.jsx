@@ -18,6 +18,7 @@ function App() {
   const [finalResults, setFinalResults] = useState(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [timerSetting, setTimerSetting] = useState(60);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   useEffect(() => {
     // Check for room code in URL
@@ -26,6 +27,13 @@ function App() {
     if (urlRoom) {
       setRoomCode(urlRoom.toUpperCase());
     }
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     socket.connect();
 
@@ -78,6 +86,7 @@ function App() {
     });
 
     return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       socket.off('player_joined');
       socket.off('player_left');
       socket.off('game_started');
@@ -175,6 +184,15 @@ function App() {
     setAnswers(prev => ({ ...prev, [category]: value }));
   };
 
+  const installApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
+
   // Render Views
   if (gameState === 'JOIN') {
     return (
@@ -219,6 +237,13 @@ function App() {
             <button onClick={handleCreate} className="btn-secondary create-btn">
               Neues Spiel Erstellen
             </button>
+
+            {deferredPrompt && (
+              <button onClick={installApp} className="btn-install glass-panel">
+                <Star size={18} fill="var(--primary-color)" />
+                <span>Spiel Installieren</span>
+              </button>
+            )}
           </div>
         </main>
       </div>
