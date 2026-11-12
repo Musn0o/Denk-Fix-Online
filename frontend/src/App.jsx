@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { Gamepad2, Users, Timer, Star, CheckCircle, XCircle, AlertCircle, Share2, Copy } from 'lucide-react';
 import { socket } from './socket';
@@ -6,7 +6,10 @@ import { QRCodeSVG } from 'qrcode.react';
 
 function App() {
   const [playerName, setPlayerName] = useState('');
-  const [roomCode, setRoomCode] = useState('');
+  const [roomCode, setRoomCode] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return (params.get('room') || '').toUpperCase();
+  });
   const [room, setRoom] = useState(null);
   const [gameState, setGameState] = useState('JOIN'); // JOIN, LOBBY, PLAYING, CORRECTION, RESULTS
   const [error, setError] = useState('');
@@ -21,13 +24,6 @@ function App() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   useEffect(() => {
-    // Check for room code in URL
-    const params = new URLSearchParams(window.location.search);
-    const urlRoom = params.get('room');
-    if (urlRoom) {
-      setRoomCode(urlRoom.toUpperCase());
-    }
-
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -134,15 +130,15 @@ function App() {
     });
   };
 
-  const submitAnswers = () => {
+  const submitAnswers = useCallback(() => {
     socket.emit('submit_answers', { roomCode, answers });
-  };
+  }, [roomCode, answers]);
 
   useEffect(() => {
     if (isLocked) {
       submitAnswers();
     }
-  }, [isLocked]);
+  }, [isLocked, submitAnswers]);
 
   const handleVeto = (playerId) => {
     socket.emit('veto_answer', { 
